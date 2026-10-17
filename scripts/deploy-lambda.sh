@@ -28,12 +28,10 @@ echo "   Architecture: ARM64 (Graviton)"
 echo "   Runtime:      provided.al2023"
 echo "=========================================================="
 
-# 1. Ensure deployment zip exists
-if [ ! -f "${ZIP_PATH}" ]; then
-  echo "📦 Deployment zip not found at ${ZIP_PATH}. Compiling package..."
-  (cd "${REPO_ROOT}/app" && make build-lambda)
-fi
-
+# 1. Compile fresh deployment package
+echo "📦 Compiling fresh ARM64 package..."
+rm -f "${ZIP_PATH}"
+(cd "${REPO_ROOT}/app" && make build-lambda)
 echo "✅ Package ready: ${ZIP_PATH} ($(du -h "${ZIP_PATH}" | cut -f1))"
 
 # 2. Check if function exists
