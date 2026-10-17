@@ -50,11 +50,13 @@ if aws lambda get-function --function-name "${FUNCTION_NAME}" --region "${REGION
     --function-name "${FUNCTION_NAME}" \
     --region "${REGION}"
 
-  echo "⚙️ Updating function configuration (RAM: ${MEMORY_SIZE}MB, Timeout: ${TIMEOUT}s)..."
+  echo "⚙️ Updating function configuration (Handler: bootstrap, RAM: ${MEMORY_SIZE}MB, Timeout: ${TIMEOUT}s)..."
   aws lambda update-function-configuration \
     --function-name "${FUNCTION_NAME}" \
+    --handler "bootstrap" \
     --memory-size "${MEMORY_SIZE}" \
     --timeout "${TIMEOUT}" \
+    --environment "Variables={GIN_MODE=release}" \
     --region "${REGION}" >/dev/null
 
   aws lambda wait function-updated \
@@ -136,13 +138,20 @@ else
     --query "FunctionUrl" \
     --output text)
 
-  echo "🛡️ Granting public invocation permission..."
+  echo "🛡️ Granting public invocation permissions..."
   aws lambda add-permission \
     --function-name "${FUNCTION_NAME}" \
     --action "lambda:InvokeFunctionUrl" \
     --principal "*" \
     --function-url-auth-type "NONE" \
     --statement-id "FunctionURLAllowPublicAccess" \
+    --region "${REGION}" >/dev/null 2>&1 || true
+
+  aws lambda add-permission \
+    --function-name "${FUNCTION_NAME}" \
+    --action "lambda:InvokeFunction" \
+    --principal "*" \
+    --statement-id "FunctionPublicInvoke" \
     --region "${REGION}" >/dev/null 2>&1 || true
 fi
 
