@@ -1,0 +1,103 @@
+name: CI/CD Pipeline - AWS Lambda Deployment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      lambda_function_name:
+        description: 'AWS Lambda Function Name'
+        required: false
+        default: 'molda-ai'
+      aws_region:
+        description: 'AWS Region'
+        required: false
+        default: 'us-east-1'
+
+permissions:
+  id-token: write   # Required for AWS OIDC authentication
+  contents: read    # Required to check out repository
+
+env:
+  LAMBDA_FUNCTION_NAME: 'moldaAi'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  test-and-build:
+    name: Test & Build Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          check-latest: true
+          cache-dependency-path: app/go.sum
+
+      - name: Run Tests
+        working-directory: app
+        run: |
+          go test -v ./...
+
+      - name: Compile for AWS Lambda (Linux ARM64 Graviton)
+        working-directory: app
+        run: |
+          make build-lambda
+
+      - name: Upload Deployment Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moldaai-lambda-package
+          path: app/moldaai-lambda.zip
+          retention-days: 7
+
+  deploy:
+    name: Deploy to AWS Lambda
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: moldaai-lambda-package
+          path: app
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to AWS Lambda
+        id: deploy
+        run: |
+          chmod +x scripts/deploy-lambda.sh
+          ./scripts/deploy-lambda.sh
+
+      - name: Publish Deployment Summary
+        if: always()
+        run: |
+          echo "### 🚀 MoldaAí AWS Lambda Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Function Name** | \`${{ env.LAMBDA_FUNCTION_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Region** | \`${{ env.AWS_REGION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Architecture** | ARM64 (Graviton) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Runtime** | \`provided.al2023\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f .deployment_url ]; then
+            URL=$(cat .deployment_url)
+            echo "🔗 **Live Public Application URL:** [$URL]($URL)" >> $GITHUB_STEP_SUMMARY
+          fi

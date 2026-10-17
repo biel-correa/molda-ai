@@ -18,5 +18,9 @@ build-lambda:
 	zip moldaai-lambda.zip bootstrap
 	rm bootstrap
 
+# Deploy package directly to AWS Lambda via AWS CLI
+deploy-lambda: build-lambda
+	bash ../scripts/deploy-lambda.sh
+
 clean:
 	rm -f bootstrap moldaai-lambda.zip molda-ai

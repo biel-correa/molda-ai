@@ -1,4 +1,4 @@
-.PHONY: run test build-local build-lambda clean
+.PHONY: run test build-local build-lambda deploy-lambda clean
 
 run:
 	@$(MAKE) -C app run
@@ -11,6 +11,9 @@ build-local:
 
 build-lambda:
 	@$(MAKE) -C app build-lambda
+
+deploy-lambda:
+	@bash scripts/deploy-lambda.sh
 
 clean:
 	@$(MAKE) -C app clean

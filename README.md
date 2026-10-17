@@ -32,9 +32,21 @@ make build-local
 
 # Package deployment ZIP for AWS Lambda (ARM64 Graviton)
 make build-lambda
+
+# Deploy directly to AWS Lambda via AWS CLI
+make deploy-lambda
 ```
 
 Open your browser at: **`http://localhost:8080`**
+
+---
+
+## Automated CI/CD Pipeline (GitHub Actions)
+
+Continuous integration and continuous deployment are fully automated via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
+* **On Pull Request:** Automatically runs formatting checks, unit tests, and cross-compilation builds.
+* **On Push to `main`:** Tests, cross-compiles for Linux ARM64 Graviton, deploys to **AWS Lambda**, updates Function URLs/CORS, and publishes the live application URL directly to the GitHub step summary.
+* Supports **OIDC IAM Role assumption** (recommended) or traditional AWS API access keys.
 
 ---
 

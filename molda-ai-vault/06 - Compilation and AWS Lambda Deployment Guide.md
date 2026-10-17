@@ -130,7 +130,64 @@ Opening this URL serves the complete embedded SPA and API immediately.
 
 ---
 
-## 4. Cost and Sizing Analysis
+## 4. Automated CI/CD Pipeline (GitHub Actions)
+
+The repository includes a turnkey GitHub Actions workflow at [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) that automatically tests, builds, and deploys to AWS Lambda on every push to `main` or via manual trigger (`workflow_dispatch`).
+
+```mermaid
+flowchart LR
+    A["git push main"] --> B["GitHub Actions Runner"]
+    subgraph CI["Stage 1: Test & Build"]
+        B --> C["go test -v ./..."]
+        C --> D["make build-lambda (ARM64)"]
+        D --> E["Upload Artifact moldaai-lambda.zip"]
+    end
+    subgraph CD["Stage 2: Deploy to AWS"]
+        E --> F["Configure AWS Credentials (OIDC or Keys)"]
+        F --> G["scripts/deploy-lambda.sh"]
+        G --> H["Update Lambda Code & Function URL"]
+    end
+    H --> I["Publish Live URL to Step Summary"]
+```
+
+### GitHub Secrets & Variables Setup:
+Under your GitHub repository &rarr; **Settings** &rarr; **Secrets and variables** &rarr; **Actions**:
+
+#### Option A: OpenID Connect (OIDC — Recommended / No Long-Lived Keys):
+* `AWS_ROLE_TO_ASSUME` (Secret): IAM Role ARN with GitHub OIDC trust relationship (e.g. `arn:aws:iam::123456789012:role/github-actions-moldaai-role`).
+* `AWS_REGION` (Variable or Secret): e.g. `us-east-1`.
+* `LAMBDA_FUNCTION_NAME` (Variable or Secret, optional): Defaults to `molda-ai`.
+
+#### Option B: Standard IAM Credentials:
+* `AWS_ACCESS_KEY_ID` (Secret): Access key for deploying IAM user.
+* `AWS_SECRET_ACCESS_KEY` (Secret): Secret key for deploying IAM user.
+* `AWS_REGION` (Variable or Secret): e.g. `us-east-1`.
+
+---
+
+## 5. Automated Deployment Script (`make deploy-lambda`)
+
+You can also trigger a complete deployment from your local terminal using the configured script [`scripts/deploy-lambda.sh`](../scripts/deploy-lambda.sh):
+
+```bash
+# Deploys using active local AWS credentials
+make deploy-lambda
+
+# Or with custom parameters:
+LAMBDA_FUNCTION_NAME=molda-ai-custom AWS_REGION=sa-east-1 make deploy-lambda
+```
+
+The script automatically:
+1. Compiles the ARM64 bootstrap package if not already built.
+2. Checks if the Lambda function and IAM role exist.
+3. Provisions missing resources if deploying for the first time.
+4. Updates existing function code, memory, and timeout settings.
+5. Ensures public Function URL and CORS configurations are active.
+6. Returns the live HTTPS endpoint directly in the terminal output.
+
+---
+
+## 6. Cost and Sizing Analysis
 
 | Metric | Estimate for 100,000 Invocations / Month |
 | :--- | :--- |

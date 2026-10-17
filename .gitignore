@@ -15,6 +15,7 @@ profile.pprof
 
 # Generated 3D and test output files
 *.stl
+.deployment_url
 
 # macOS system files
 .DS_Store
