@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#FAF7F2]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="page_title">MoldaAí — 3D Cutter & Mold Generator</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            clay: {
+              50: '#FDF8F5',
+              100: '#F9EEE8',
+              200: '#F2D7C9',
+              300: '#E8BCA6',
+              400: '#D98967',
+              500: '#C85A32',
+              600: '#B44723',
+              700: '#953518',
+              800: '#7B2C16',
+              900: '#662615',
+            },
+            sand: {
+              50: '#FAF8F5',
+              100: '#F3EFEA',
+              200: '#E6DFD5',
+              300: '#D5C9BC',
+              400: '#B8A593',
+              500: '#9B8470',
+              600: '#7E6956',
+              700: '#645243',
+              800: '#524337',
+              900: '#43372D',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Three.js ES Modules Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars and slider styling */
+    input[type=range] {
+      accent-color: #C85A32;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col text-sand-800 antialiased font-sans">
+
+  <!-- Header / Navbar -->
+  <header class="bg-white/80 backdrop-blur border-b border-sand-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-clay-500 to-clay-700 flex items-center justify-center text-white shadow-md shadow-clay-500/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-xl tracking-tight text-sand-900">Molda<span class="text-clay-600">Aí</span></span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider bg-clay-100 text-clay-700 px-2 py-0.5 rounded-full border border-clay-200">3D STL</span>
+          </div>
+          <p id="header-subtitle" data-i18n="header_subtitle" class="text-xs text-sand-500">Transform 2D silhouettes into 3D cookie & clay cutters for 3D printing</p>
+        </div>
+      </div>
+
+      <!-- Language Switcher -->
+      <div class="flex items-center bg-sand-100 p-1 rounded-xl border border-sand-200 shadow-inner">
+        <button type="button" id="lang-btn-en" class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all text-sand-600 hover:text-sand-900 flex items-center space-x-1">
+          <span>🇺🇸</span>
+          <span>EN</span>
+        </button>
+        <button type="button" id="lang-btn-pt" class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all text-sand-600 hover:text-sand-900 flex items-center space-x-1">
+          <span>🇧🇷</span>
+          <span>PT</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left Column: Controls & Upload (5 Cols) -->
+    <div class="lg:col-span-5 flex flex-col space-y-6">
+
+      <!-- Upload & Preview Card -->
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-sand-200 flex flex-col space-y-4">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-sand-500 flex items-center justify-between">
+          <span data-i18n="card1_title">1. Input Image</span>
+          <span id="image-dim-badge" class="hidden text-xs font-normal text-sand-400"></span>
+        </h2>
+
+        <!-- Upload Dropzone -->
+        <label id="dropzone" class="relative group cursor-pointer border-2 border-dashed border-sand-300 hover:border-clay-400 bg-sand-50/50 hover:bg-clay-50/40 transition-all rounded-xl p-4 flex flex-col items-center justify-center text-center min-h-[160px] overflow-hidden">
+          <input type="file" id="image-input" accept="image/png, image/jpeg, image/webp, image/svg+xml, .svg, .webp" class="sr-only">
+
+          <div id="dropzone-prompt" class="flex flex-col items-center space-y-2">
+            <div class="w-12 h-12 rounded-full bg-clay-100 text-clay-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p data-i18n="dropzone_title" class="text-sm font-medium text-sand-700">Click to upload or drag & drop image</p>
+            <p data-i18n="dropzone_desc" class="text-xs text-sand-400">PNG, JPEG, WebP or SVG (Solid silhouette or outline)</p>
+          </div>
+
+          <!-- Hidden canvas for client-side resize & processing -->
+          <canvas id="hidden-canvas" class="hidden"></canvas>
+
+          <!-- 2D B&W Live Preview Canvas -->
+          <div id="preview-wrapper" class="hidden w-full flex flex-col items-center">
+            <canvas id="preview-canvas" class="max-h-48 rounded-lg shadow-inner border border-sand-300 bg-white"></canvas>
+            <span data-i18n="preview_caption" class="mt-2 text-[11px] text-sand-500">2D binarized preview (black areas form the cutter)</span>
+          </div>
+        </label>
+
+        <!-- Threshold & Invert Controls -->
+        <div class="pt-2 border-t border-sand-100 space-y-3">
+          <div class="flex items-center justify-between text-xs font-medium">
+            <label for="threshold-slider" data-i18n="threshold_label" class="text-sand-700">Contrast Threshold</label>
+            <span id="threshold-val" class="font-mono text-clay-700 bg-clay-50 px-2 py-0.5 rounded border border-clay-200">128</span>
+          </div>
+          <input type="range" id="threshold-slider" min="1" max="254" value="128" class="w-full h-1.5 bg-sand-200 rounded-lg appearance-none cursor-pointer">
+
+          <div class="flex items-center justify-between pt-1">
+            <label class="flex items-center space-x-2 text-xs font-medium text-sand-700 cursor-pointer">
+              <input type="checkbox" id="invert-check" class="rounded border-sand-300 text-clay-600 focus:ring-clay-500">
+              <span data-i18n="invert_label">Invert Colors (solid &harr; empty)</span>
+            </label>
+            <button type="button" id="btn-use-sample" data-i18n="sample_btn" class="text-xs text-clay-600 hover:text-clay-700 font-medium hover:underline">
+              Use Sample Cutter (Heart)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parameters & Presets Card -->
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-sand-200 flex flex-col space-y-5">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-sand-500" data-i18n="card2_title">2. Cutter Dimensions (mm)</h2>
+          <span class="text-xs text-sand-400" data-i18n="scale_badge">Millimeter Scale</span>
+        </div>
+
+        <!-- Presets Buttons: Small, Medium, Large -->
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" id="preset-small" class="flex flex-col items-center justify-center p-2.5 rounded-xl border border-sand-300 bg-sand-50/70 hover:bg-clay-50 hover:border-clay-300 text-sand-800 transition-all font-medium text-xs text-center shadow-sm">
+            <span class="font-bold text-xs text-clay-700" data-i18n="preset_small_title">Small</span>
+            <span class="text-[10px] text-sand-500 mt-0.5">45 mm</span>
+          </button>
+          <button type="button" id="preset-medium" class="flex flex-col items-center justify-center p-2.5 rounded-xl border border-clay-300 bg-clay-50/70 hover:bg-clay-100 text-clay-900 transition-all font-medium text-xs text-center shadow-sm ring-1 ring-clay-400/30">
+            <span class="font-bold text-xs text-clay-700" data-i18n="preset_medium_title">Medium</span>
+            <span class="text-[10px] text-clay-600 mt-0.5">70 mm</span>
+          </button>
+          <button type="button" id="preset-large" class="flex flex-col items-center justify-center p-2.5 rounded-xl border border-sand-300 bg-sand-50/70 hover:bg-clay-50 hover:border-clay-300 text-sand-800 transition-all font-medium text-xs text-center shadow-sm">
+            <span class="font-bold text-xs text-clay-700" data-i18n="preset_large_title">Large</span>
+            <span class="text-[10px] text-sand-500 mt-0.5">100 mm</span>
+          </button>
+        </div>
+
+        <!-- Inputs Grid -->
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Size MM -->
+          <div class="space-y-1">
+            <label for="input-size" data-i18n="input_size_label" class="text-xs font-medium text-sand-700">Max Size (mm)</label>
+            <input type="number" id="input-size" value="70.0" min="20.0" max="200.0" step="1.0" class="w-full px-3 py-2 text-sm rounded-lg border border-sand-300 focus:outline-none focus:ring-2 focus:ring-clay-500 bg-sand-50/30">
+            <span data-i18n="input_size_hint" class="text-[10px] text-sand-400">Longest axis of cutter</span>
+          </div>
+
+          <!-- Blade Thickness MM -->
+          <div class="space-y-1">
+            <label for="input-blade-thick" data-i18n="input_blade_thick_label" class="text-xs font-medium text-sand-700">Blade Wall (mm)</label>
+            <input type="number" id="input-blade-thick" value="0.8" min="0.4" max="3.0" step="0.1" class="w-full px-3 py-2 text-sm rounded-lg border border-sand-300 focus:outline-none focus:ring-2 focus:ring-clay-500 bg-sand-50/30">
+            <span data-i18n="input_blade_thick_hint" class="text-[10px] text-sand-400">Ideal 2 perimeters (0.4 nozzle)</span>
+          </div>
+
+          <!-- Blade Height MM -->
+          <div class="space-y-1">
+            <label for="input-blade-height" data-i18n="input_blade_height_label" class="text-xs font-medium text-sand-700">Blade Height (mm)</label>
+            <input type="number" id="input-blade-height" value="12.0" min="4.0" max="40.0" step="0.5" class="w-full px-3 py-2 text-sm rounded-lg border border-sand-300 focus:outline-none focus:ring-2 focus:ring-clay-500 bg-sand-50/30">
+            <span data-i18n="input_blade_height_hint" class="text-[10px] text-sand-400">Cutting depth</span>
+          </div>
+
+          <!-- Base Thickness MM -->
+          <div class="space-y-1">
+            <label for="input-base-thick" data-i18n="input_base_thick_label" class="text-xs font-medium text-sand-700">Support Rim Width (mm)</label>
+            <input type="number" id="input-base-thick" value="3.2" min="1.0" max="10.0" step="0.2" class="w-full px-3 py-2 text-sm rounded-lg border border-sand-300 focus:outline-none focus:ring-2 focus:ring-clay-500 bg-sand-50/30">
+            <span data-i18n="input_base_thick_hint" class="text-[10px] text-sand-400">Comfortable hand grip</span>
+          </div>
+
+          <!-- Base Height MM -->
+          <div class="col-span-2 space-y-1">
+            <label for="input-base-height" data-i18n="input_base_height_label" class="text-xs font-medium text-sand-700">Support Rim Height (mm)</label>
+            <input type="number" id="input-base-height" value="3.0" min="1.0" max="10.0" step="0.5" class="w-full px-3 py-2 text-sm rounded-lg border border-sand-300 focus:outline-none focus:ring-2 focus:ring-clay-500 bg-sand-50/30">
+            <span data-i18n="input_base_height_hint" class="text-[10px] text-sand-400">Reinforced base thickness</span>
+          </div>
+
+          <!-- Smoothing / Amaciamento Slider -->
+          <div class="col-span-2 space-y-1.5 pt-2 border-t border-sand-100">
+            <div class="flex items-center justify-between text-xs font-medium">
+              <label for="smoothing-slider" class="text-sand-700 flex items-center gap-1.5">
+                <span data-i18n="smoothing_label">Line Smoothing</span>
+                <span data-i18n="smoothing_sublabel" class="text-[10px] font-normal text-sand-400">(smoothes wobbles and straightens lines)</span>
+              </label>
+              <span id="smoothing-val" class="font-mono text-clay-700 bg-clay-50 px-2 py-0.5 rounded border border-clay-200">0.50 mm</span>
+            </div>
+            <input type="range" id="smoothing-slider" min="0.10" max="1.50" step="0.05" value="0.50" class="w-full h-1.5 bg-sand-200 rounded-lg appearance-none cursor-pointer">
+            <div class="flex justify-between text-[10px] text-sand-400">
+              <span data-i18n="smoothing_low">0.1 mm (Fine detail)</span>
+              <span data-i18n="smoothing_mid">Recommended: 0.4 - 0.7 mm</span>
+              <span data-i18n="smoothing_high">1.5 mm (Ultra-straight)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button type="button" id="btn-generate" class="w-full py-3.5 px-4 bg-gradient-to-r from-clay-600 to-clay-700 hover:from-clay-700 hover:to-clay-800 text-white font-semibold rounded-xl shadow-lg shadow-clay-600/25 flex items-center justify-center space-x-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg id="generate-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          <svg id="generate-spinner" class="hidden animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span id="generate-btn-text" data-i18n="generate_btn">Generate 3D Cutter (.STL)</span>
+        </button>
+
+        <!-- Status / Error Banner -->
+        <div id="status-banner" class="hidden p-3 rounded-xl text-xs font-medium flex items-start space-x-2"></div>
+      </div>
+    </div>
+
+    <!-- Right Column: 3D Preview & Export (7 Cols) -->
+    <div class="lg:col-span-7 flex flex-col space-y-4">
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-sand-200 flex-1 flex flex-col min-h-[520px]">
+
+        <!-- Viewport Toolbar -->
+        <div class="flex items-center justify-between pb-4 border-b border-sand-100">
+          <div class="flex items-center space-x-3">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-sand-500" data-i18n="viewport_title">3D Viewport</h2>
+            <div id="model-stats" class="hidden flex items-center space-x-2 text-xs text-sand-500">
+              <span class="w-1.5 h-1.5 rounded-full bg-sand-300"></span>
+              <span id="triangles-count" class="font-mono font-medium text-clay-700">0 triangles</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-sand-300"></span>
+              <span id="filesize-badge" class="font-mono text-sand-600">0 KB</span>
+            </div>
+          </div>
+
+          <!-- Controls Help -->
+          <div class="text-[11px] text-sand-400 hidden sm:flex items-center space-x-2">
+            <span data-i18n="viewport_controls">🖱️ Left click: rotate &bull; Scroll: zoom &bull; Right click: pan</span>
+          </div>
+        </div>
+
+        <!-- 3D WebGL Canvas Container -->
+        <div class="relative flex-1 rounded-xl overflow-hidden bg-gradient-to-b from-[#2B2D42] to-[#1D1E2C] mt-4 min-h-[380px]">
+          <div id="three-container" class="absolute inset-0 w-full h-full"></div>
+
+          <!-- Empty State Overlay -->
+          <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-sand-300 pointer-events-none">
+            <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 text-clay-400 backdrop-blur-sm">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+              </svg>
+            </div>
+            <p class="font-semibold text-white text-base" data-i18n="empty_title">Empty 3D Print Bed</p>
+            <p class="text-xs text-sand-400 max-w-xs mt-1" data-i18n="empty_desc">Upload an image or click the sample cutter to generate the 3D model.</p>
+          </div>
+
+          <!-- Loading Overlay -->
+          <div id="viewport-loading" class="hidden absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center text-white">
+            <div class="w-10 h-10 border-4 border-clay-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p class="text-sm font-medium" data-i18n="loading_text">Processing image and building watertight manifold mesh...</p>
+          </div>
+        </div>
+
+        <!-- Download Action Footer -->
+        <div class="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="text-xs text-sand-500 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span data-i18n="compatibility_hint">Compatible with Cura, PrusaSlicer, Bambu Studio & OrcaSlicer</span>
+          </div>
+
+          <button type="button" id="btn-download" disabled class="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-sand-200 text-white disabled:text-sand-400 font-semibold text-sm rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span data-i18n="download_btn">Download .STL File</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-sand-200 bg-white py-4 text-center text-xs text-sand-500">
+    <p data-i18n="footer_text">MoldaAí &copy; 2026 &bull; Single-Binary Go &bull; Zero Cloud Storage &bull; In-Memory Processing</p>
+  </footer>
+
+  <!-- App Script (ES Module) -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
